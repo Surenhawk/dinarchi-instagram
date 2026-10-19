@@ -1,0 +1,4 @@
+node_modules/
+*.png
+!art/*.png
+__pycache__/
