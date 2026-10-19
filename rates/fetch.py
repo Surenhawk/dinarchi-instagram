@@ -31,7 +31,7 @@ def text(u):
     t = re.sub(r'<script.*?</script>|<style.*?</style>', '', s, flags=re.S)
     t = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', t))
     import html; t = html.unescape(t)
-    i = t.find('بحسب مراسل'); i = i if i > 0 else max(t.find('شفق نيوز'), 0)
+    i = max(t.find('مراسل') - 250, 0)          # the report body starts around the correspondent line
     return d, t[i:i + 1800]
 
 
@@ -39,20 +39,36 @@ def same_day(d):
     return d and dt.datetime.fromisoformat(d).astimezone(BAGHDAD).date().isoformat() == day
 
 
+def parse_usd(t):
+    """Shafaq writes Baghdad shops (sell, then buy) and then 'وفي أربيل' (sell, then buy); the lead sentence may name Erbil too,
+    so Erbil is the first mention followed by two 6-digit prices with no Baghdad in between."""
+    er = bg = None
+    for m in re.finditer(r'[أا]ربيل', t):
+        seg = t[m.end():m.end() + 260]
+        nums = re.findall(r'\b(\d{6})\b', seg)
+        if len(nums) >= 2 and 'بغداد' not in seg[:seg.find(nums[1])]:
+            er = nums[:2]
+            shop = t.rfind('الصيرفة', 0, m.start())
+            if shop > 0:
+                b = re.findall(r'\b(\d{6})\b', t[shop:m.start()])
+                bg = b[:2] if len(b) >= 2 else None
+            break
+    ok = lambda p: p and int(p[0]) >= int(p[1]) and int(p[0]) - int(p[1]) < int(p[0]) * .02
+    return (er if ok(er) else None), (bg if ok(bg) else None)
+
+
 usd = gold_sh = prev_close = None
 prev_day = (dt.date.fromisoformat(day) - dt.timedelta(days=1)).isoformat()
-SELL = r'البيع\D{0,20}(\d{6}).{0,120}?الشراء\D{0,20}(\d{6})'
 for title, u in shafaq.listing():          # newest first
     d, t = text(u)
     pday = d and dt.datetime.fromisoformat(d).astimezone(BAGHDAD).date().isoformat()
     is_usd = 'دولار' in title or 'الصرف' in title
-    er = re.search(r'أربيل.{0,160}?' + SELL, t)
-    bg = re.search(r'(?:محال الصيرفة|الأسواق المحلية).{0,160}?' + SELL, t)
+    er, bg = parse_usd(t)
     if is_usd and pday == day and usd is None:
         bo = re.search(r'الكفاح والحارثية\D{0,80}?(\d{6})', t)
-        usd = dict(title=title, url=u, published=d, text=t, erbil=er and er.groups(), baghdad=bg and bg.groups(), bourse=bo and bo.group(1))
+        usd = dict(title=title, url=u, published=d, text=t, erbil=er, baghdad=bg, bourse=bo and bo.group(1))
     elif is_usd and pday == prev_day and prev_close is None and er and bg:
-        prev_close = {'erbil_sell': int(er.group(1)), 'baghdad_sell': int(bg.group(1)), 'url': u, 'published': d}
+        prev_close = {'erbil_sell': int(er[0]), 'baghdad_sell': int(bg[0]), 'url': u, 'published': d}
     elif not is_usd and pday == day and gold_sh is None and ('الذهب' in title or 'المثقال' in title):
         m = re.search(r'عيار 21 بلغ (\d{3,4}) ألف', t)
         gold_sh = dict(title=title, url=u, published=d, text=t, g21_baghdad=m and int(m.group(1)) * 1000)
