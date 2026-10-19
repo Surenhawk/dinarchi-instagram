@@ -19,6 +19,21 @@ def call(method, path, **params):
         sys.exit(f'Instagram API error {e.code} on {path}: {e.read().decode()[:500]}')
 
 
+# Image description for screen readers and search; Instagram indexes alt text alongside captions.
+ALT = 'تابلۆی نرخی دۆلار، زێڕ و دراوەکان لە هەولێر، سلێمانی، بەغدا، بەسرە و دهۆک، {day}. دینارچی'
+
+
+def item(uid, image_url, alt):
+    """Carousel child with alt text; retried without it if the API rejects the field,
+    so a missing alt never costs the day's post."""
+    params = dict(image_url=image_url, is_carousel_item='true')
+    try:
+        return call('POST', f'{uid}/media', alt_text=alt, **params)['id']
+    except SystemExit as e:
+        print(f'alt_text rejected, posting without it: {e}', file=sys.stderr)
+        return call('POST', f'{uid}/media', **params)['id']
+
+
 def ready(cid):
     for _ in range(60):
         s = call('GET', cid, fields='status_code').get('status_code')
@@ -39,7 +54,7 @@ def main(day, base):
     caption = open(os.path.join(out, 'caption.txt')).read()
     kids = []
     for i in range(1, 4):
-        kid = call('POST', f'{uid}/media', image_url=f'{base}/post-{i}.jpg', is_carousel_item='true')['id']
+        kid = item(uid, f'{base}/post-{i}.jpg', ALT.format(day=day))
         ready(kid)
         kids.append(kid)
     cid = call('POST', f'{uid}/media', media_type='CAROUSEL', children=','.join(kids), caption=caption)['id']
