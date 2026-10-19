@@ -1,0 +1,79 @@
+name: Daily rates board
+
+on:
+  schedule:
+    - cron: '0 8 * * *'   # 11:00 Baghdad
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Post to Instagram (otherwise only render and commit)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency: daily-rates
+
+jobs:
+  board:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: rates
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install browser
+        run: npm i --no-save playwright@1.48.2 && npx playwright install --with-deps chromium
+
+      - name: Read today's rates (waits up to 80 min for Shafaq's morning report)
+        id: fetch
+        run: |
+          DAY=$(TZ=Asia/Baghdad date +%F)
+          echo "day=$DAY" >> "$GITHUB_OUTPUT"
+          for i in $(seq 1 17); do
+            set +e; python3 fetch.py --date "$DAY"; code=$?; set -e
+            [ $code -ne 3 ] && exit $code
+            echo "no report yet, retry in 5 min"; sleep 300
+          done
+          echo "Shafaq had no same-day dollar report"; exit 3
+
+      - name: Draw the board
+        run: |
+          python3 build.py data/${{ steps.fetch.outputs.day }}.json
+          node render.js daily/${{ steps.fetch.outputs.day }}
+          rm -f daily/${{ steps.fetch.outputs.day }}/*.png
+
+      - name: Commit images
+        id: commit
+        run: |
+          git config user.name "dinarchi-rates-bot"
+          git config user.email "dinarchi-rates-bot@users.noreply.github.com"
+          git add data daily
+          git commit -m "Rates board ${{ steps.fetch.outputs.day }}" || true
+          git push
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Post to Instagram
+        if: (github.event_name == 'schedule' && vars.RATES_AUTOPOST == 'on') || (github.event_name == 'workflow_dispatch' && inputs.publish)
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: |
+          DAY=${{ steps.fetch.outputs.day }}
+          PAGES="https://surenhawk.github.io/dinarchi-instagram/rates/daily/$DAY"
+          BASE="https://raw.githubusercontent.com/${{ github.repository }}/${{ steps.commit.outputs.sha }}/rates/daily/$DAY"
+          for i in $(seq 1 20); do
+            if curl -sfI "$PAGES/board.jpg" >/dev/null && curl -sfI "$PAGES/story.jpg" >/dev/null; then BASE="$PAGES"; break; fi
+            sleep 15
+          done
+          echo "media from $BASE"
+          python3 post.py "$DAY" "$BASE"
+          git add daily && git commit -m "Published rates board $DAY" && git push
