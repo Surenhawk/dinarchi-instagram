@@ -1,10 +1,10 @@
-# Daily rates board (@dinarchi.iq)
+# Daily rates posters (@dinarchi.iq)
 
-One Kurdish image a day (1080x1350 feed post + 1080x1920 story): 100 USD in Erbil and Baghdad, EUR, GBP, TRY, JPY, and gold 24/21/18 per mithqal.
+Every day at 18:00 Baghdad: a three-poster Kurdish carousel (dollar, gold, currencies), the round-18 design from the "Design · rates board, pro branding" thread.
 
-- `fetch.py` reads Shafaq News' same-day dollar report (Erbil + Baghdad shops), open.er-api.com cross rates and the gold-api.com spot ounce, then writes `data/<date>.json`. Exit 3 = no report yet, 2 = needs a human look, 0 = ok. It cross-checks computed 21k gold against Shafaq's Baghdad gold report (warns above 3%).
-- `build.py` + `render.js` draw `daily/<date>/board.jpg`, `story.jpg`, `caption.txt`.
-- `post.py` publishes the feed image and the story with the Instagram API.
-- `.github/workflows/daily-rates.yml` runs it all at 11:00 Baghdad. It **only publishes when the repository variable `RATES_AUTOPOST` is `on`** (Settings → Secrets and variables → Actions → Variables) and needs the secrets `IG_USER_ID` and `IG_ACCESS_TOKEN`. Any warning from `fetch.py` stops the post and fails the run, so GitHub emails the owner.
+- `dinarchi.py` reads the day's prices from the Dinarchi app (`app.dinarchi.com/api/board` and `/api/markets`): 100 USD in Erbil (with the app's daily change) and Baghdad, gold 24/21/18 per mithqal, the world gold ounce, and 100 EUR/GBP/TRY/JPY in Erbil. It writes `data/<date>.json`. Exit 2 = a price is missing, older than 36 hours or out of range, so nothing is posted.
+- `posters.py` + `shoot.js` draw `daily/<date>/post-1.jpg`..`post-3.jpg` and `caption.txt` (brand font Noto Kufi Arabic, 3D art in `art/`). `shoot.js` fails if the font does not load or any text is under 30px or near an edge.
+- `post.py` publishes the three images as one carousel with the Instagram API.
+- `.github/workflows/daily-rates.yml` runs it all at 18:00 Baghdad. It **only publishes when the repository variable `RATES_AUTOPOST` is `on`** (Settings → Secrets and variables → Actions → Variables) and needs the secrets `IG_USER_ID` and `IG_ACCESS_TOKEN`. Any failure stops the post and fails the run, so GitHub emails the owner.
 
-Other currencies and gold are computed: world rate × Erbil market dollar. Mithqal = 5 g. Gold excludes the making fee.
+The older single-board pipeline (`fetch.py`, `build.py`, `render.js`, Shafaq News + world rates) is kept for reference but is no longer run.

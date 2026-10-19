@@ -1,8 +1,8 @@
-name: Daily rates board
+name: Daily rates posters
 
 on:
   schedule:
-    - cron: '0 8 * * *'   # 11:00 Baghdad
+    - cron: '0 15 * * *'   # 18:00 Baghdad
   workflow_dispatch:
     inputs:
       publish:
@@ -33,23 +33,23 @@ jobs:
       - name: Install browser
         run: npm i --no-save playwright@1.48.2 && npx playwright install --with-deps chromium
 
-      - name: Read today's rates (waits up to 80 min for Shafaq's morning report)
+      - name: Read today's prices from the Dinarchi app
         id: fetch
         run: |
           DAY=$(TZ=Asia/Baghdad date +%F)
           echo "day=$DAY" >> "$GITHUB_OUTPUT"
-          for i in $(seq 1 17); do
-            set +e; python3 fetch.py --date "$DAY"; code=$?; set -e
-            [ $code -ne 3 ] && exit $code
-            echo "no report yet, retry in 5 min"; sleep 300
+          for i in 1 2 3; do
+            set +e; python3 dinarchi.py --date "$DAY"; code=$?; set -e
+            [ $code -eq 0 ] && exit 0
+            [ $code -eq 2 ] && exit 2   # the app answered but a number needs a human look: never post it
+            echo "app not reachable, retry in 2 min"; sleep 120
           done
-          echo "Shafaq had no same-day dollar report"; exit 3
+          exit 1
 
-      - name: Draw the board
+      - name: Draw the three posters
         run: |
-          python3 build.py data/${{ steps.fetch.outputs.day }}.json
-          node render.js daily/${{ steps.fetch.outputs.day }}
-          rm -f daily/${{ steps.fetch.outputs.day }}/*.png
+          python3 posters.py data/${{ steps.fetch.outputs.day }}.json
+          node shoot.js daily/${{ steps.fetch.outputs.day }}
 
       - name: Commit images
         id: commit
@@ -57,7 +57,7 @@ jobs:
           git config user.name "dinarchi-rates-bot"
           git config user.email "dinarchi-rates-bot@users.noreply.github.com"
           git add data daily
-          git commit -m "Rates board ${{ steps.fetch.outputs.day }}" || true
+          git commit -m "Rates posters ${{ steps.fetch.outputs.day }}" || true
           git push
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
@@ -71,9 +71,9 @@ jobs:
           PAGES="https://surenhawk.github.io/dinarchi-instagram/rates/daily/$DAY"
           BASE="https://raw.githubusercontent.com/${{ github.repository }}/${{ steps.commit.outputs.sha }}/rates/daily/$DAY"
           for i in $(seq 1 20); do
-            if curl -sfI "$PAGES/board.jpg" >/dev/null && curl -sfI "$PAGES/story.jpg" >/dev/null; then BASE="$PAGES"; break; fi
+            if curl -sfI "$PAGES/post-1.jpg" >/dev/null && curl -sfI "$PAGES/post-3.jpg" >/dev/null; then BASE="$PAGES"; break; fi
             sleep 15
           done
           echo "media from $BASE"
           python3 post.py "$DAY" "$BASE"
-          git add daily && git commit -m "Published rates board $DAY" && git push
+          git add daily && git commit -m "Published rates posters $DAY" && git push
