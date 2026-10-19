@@ -64,7 +64,7 @@ def posters(d):
                      + row(f"{K['karat']} <span class='n'>18</span>", f(g['18']['value']))
                      + row(f"{K['world_gold']} · {K['per_oz']}", f"${f(d['xau_usd'])}"))
     curs = '<div class="card list">' + '<div class="sep"></div>'.join(
-        f'<div class="crow"><img src="{art(c.lower())}"><div class="nm"><b>{name}</b><span>{unit} · {K["in_dinar"]}</span></div>'
+        f'<div class="crow"><img src="{art(c.lower())}"><div class="nm"><b>{name}</b><span>{unit}</span></div>'
         f'<span class="n v">{f(d["cur"][c]["value"])}</span></div>' for c, name, unit in CURS) + '</div>'
     return [frame(0, K['t_usd'], usd, d['date']), frame(1, K['t_gold'], gold, d['date']), frame(2, K['t_cur'], curs, d['date'])]
 
@@ -97,7 +97,7 @@ CSS = f"""
 .crow img{{width:140px;height:140px;object-fit:contain;filter:drop-shadow(0 14px 16px rgba(40,30,20,.18))}}
 .nm{{display:flex;flex-direction:column;white-space:nowrap}}
 .nm b{{font-size:42px;font-weight:800}} .nm span{{font-size:31px;font-weight:600;color:{STONE}}}
-.v{{margin-inline-start:auto;font-size:66px;font-weight:800;letter-spacing:-.02em}}
+.v{{margin-right:auto;font-size:66px;font-weight:800;letter-spacing:-.02em}}
 .sep{{height:2px;background:rgba(0,0,0,.08)}}
 .foot{{position:absolute;left:72px;right:72px;bottom:56px;height:70px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;direction:ltr}}
 .segs{{display:flex;gap:10px;justify-self:start}} .segs i{{width:30px;height:10px;border-radius:5px;background:rgba(0,0,0,.14)}}
