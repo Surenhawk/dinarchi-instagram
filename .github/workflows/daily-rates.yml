@@ -2,7 +2,7 @@ name: Daily rates posters
 
 on:
   schedule:
-    - cron: '0 15 * * *'   # 18:00 Baghdad
+    - cron: '0 15 * * 0-4,6'   # 18:00 Baghdad, every day except Friday
   workflow_dispatch:
     inputs:
       publish:
