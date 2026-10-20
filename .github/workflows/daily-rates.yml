@@ -2,7 +2,12 @@ name: Daily rates posters
 
 on:
   schedule:
-    - cron: '0 15 * * 0-4,6'   # 18:00 Baghdad, every day except Friday
+    # Every day except Friday. GitHub may delay or drop a scheduled run (19-20 Oct: the 15:00 UTC run never started),
+    # so the main run starts early and waits for 18:00 Baghdad, and three backups post only if nothing went out yet.
+    - cron: '41 14 * * 0-4,6'
+    - cron: '13 15 * * 0-4,6'
+    - cron: '43 15 * * 0-4,6'
+    - cron: '17 16 * * 0-4,6'
   workflow_dispatch:
     inputs:
       publish:
@@ -24,16 +29,27 @@ jobs:
         working-directory: rates
     steps:
       - uses: actions/checkout@v4
+      - name: Already posted today?
+        id: gate
+        run: |
+          DAY=$(TZ=Asia/Baghdad date +%F)
+          if [ "${{ github.event_name }}" = schedule ] && [ -f "daily/$DAY/published.json" ]; then
+            echo "already posted $DAY"; echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-python@v5
+        if: steps.gate.outputs.skip != 'true'
         with:
           python-version: '3.12'
       - uses: actions/setup-node@v4
+        if: steps.gate.outputs.skip != 'true'
         with:
           node-version: '20'
       - name: Install browser
+        if: steps.gate.outputs.skip != 'true'
         run: npm i --no-save playwright@1.48.2 && npx playwright install --with-deps chromium
 
       - name: Read today's prices from the Dinarchi app
+        if: steps.gate.outputs.skip != 'true'
         id: fetch
         run: |
           DAY=$(TZ=Asia/Baghdad date +%F)
@@ -47,11 +63,13 @@ jobs:
           exit 1
 
       - name: Draw the three posters
+        if: steps.gate.outputs.skip != 'true'
         run: |
           python3 posters.py data/${{ steps.fetch.outputs.day }}.json
           node shoot.js daily/${{ steps.fetch.outputs.day }}
 
       - name: Commit images
+        if: steps.gate.outputs.skip != 'true'
         id: commit
         run: |
           git config user.name "dinarchi-rates-bot"
@@ -62,7 +80,7 @@ jobs:
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Post to Instagram
-        if: (github.event_name == 'schedule' && vars.RATES_AUTOPOST == 'on') || (github.event_name == 'workflow_dispatch' && inputs.publish)
+        if: steps.gate.outputs.skip != 'true' && ((github.event_name == 'schedule' && vars.RATES_AUTOPOST == 'on') || (github.event_name == 'workflow_dispatch' && inputs.publish))
         env:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
@@ -75,5 +93,9 @@ jobs:
             sleep 15
           done
           echo "media from $BASE"
+          if [ "${{ github.event_name }}" = schedule ]; then   # the early run waits for 18:00 Baghdad
+            now=$(date -u +%s); at=$(date -u -d 'today 15:00' +%s)
+            [ "$now" -lt "$at" ] && { echo "waiting $((at - now))s for 18:00 Baghdad"; sleep $((at - now)); }
+          fi
           python3 post.py "$DAY" "$BASE"
           git add daily && git commit -m "Published rates posters $DAY" && git pull --rebase -q origin main && git push
