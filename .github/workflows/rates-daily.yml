@@ -1,9 +1,10 @@
-name: Daily rates posters
+name: Daily rates posters (scheduled)
 
 on:
   schedule:
-    # Every day except Friday. GitHub may delay or drop a scheduled run (19-20 Oct: the 15:00 UTC run never started),
-    # so the main run starts early and waits for 18:00 Baghdad, and three backups post only if nothing went out yet.
+    # Every day except Friday. Renamed from daily-rates.yml on 21 Oct 2026: GitHub never started a single scheduled
+    # run of that file (19-21 Oct, only manual runs), so the schedule is registered again under a new file name.
+    # GitHub may still delay or drop a scheduled run, so the main run starts early and waits for 18:00 Baghdad, and three backups post only if nothing went out yet.
     - cron: '41 14 * * 0-4,6'
     - cron: '13 15 * * 0-4,6'
     - cron: '43 15 * * 0-4,6'
