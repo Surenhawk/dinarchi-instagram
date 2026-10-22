@@ -1,6 +1,7 @@
-"""Publish the day's three posters to Instagram as one carousel (Instagram API with Instagram Login).
+"""Publish the day's three posters to Instagram as one carousel, then the dollar poster as a story (Instagram API with Instagram Login).
 python3 post.py <date> <public-base-url>     e.g. post.py 2026-10-19 https://surenhawk.github.io/dinarchi-instagram/rates/daily/2026-10-19
-Env: IG_USER_ID, IG_ACCESS_TOKEN. Writes daily/<date>/published.json."""
+Env: IG_USER_ID, IG_ACCESS_TOKEN. Writes daily/<date>/published.json.
+The story (brand Step 5) is best-effort: if Instagram refuses it, the carousel stays posted and the run still succeeds."""
 import json, os, sys, time, urllib.parse, urllib.request
 
 API = 'https://graph.instagram.com/v23.0'
@@ -45,6 +46,17 @@ def ready(cid):
     sys.exit(f'container {cid} not ready')
 
 
+def story(uid, image_url):
+    """Post story.jpg as an Instagram story. Returns the result dict, or the error text; never stops the run."""
+    try:
+        cid = call('POST', f'{uid}/media', media_type='STORIES', image_url=image_url)['id']
+        ready(cid)
+        return {'media_id': call('POST', f'{uid}/media_publish', creation_id=cid)['id']}
+    except SystemExit as e:
+        print(f'story not posted: {e}', file=sys.stderr)
+        return {'error': str(e)[:300]}
+
+
 def main(day, base):
     out = os.path.join(HERE, 'daily', day)
     done = os.path.join(out, 'published.json')
@@ -62,7 +74,10 @@ def main(day, base):
     mid = call('POST', f'{uid}/media_publish', creation_id=cid)['id']
     res = {'feed': {'media_id': mid, 'permalink': call('GET', mid, fields='permalink').get('permalink', '')}}
     res['at'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
-    json.dump(res, open(done, 'w'), indent=1)
+    json.dump(res, open(done, 'w'), indent=1)            # the feed post is recorded before the story is tried
+    if os.path.exists(os.path.join(out, 'story.jpg')):
+        res['story'] = story(uid, f'{base}/story.jpg')
+        json.dump(res, open(done, 'w'), indent=1)
     print('PUBLISHED', json.dumps(res))
 
 

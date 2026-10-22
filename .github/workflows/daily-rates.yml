@@ -62,11 +62,14 @@ jobs:
           done
           exit 1
 
-      - name: Draw the three posters
+      - name: Draw the posters and the story (Kurdish, and the Arabic edition)
         if: steps.gate.outputs.skip != 'true'
         run: |
           python3 posters.py data/${{ steps.fetch.outputs.day }}.json
           node shoot.js daily/${{ steps.fetch.outputs.day }}
+          # Arabic edition (@dinarchi.ar): drawn and committed every day; not posted until that account exists
+          python3 posters.py data/${{ steps.fetch.outputs.day }}.json --lang ar
+          node shoot.js daily/${{ steps.fetch.outputs.day }}/ar
 
       - name: Commit images
         if: steps.gate.outputs.skip != 'true'
