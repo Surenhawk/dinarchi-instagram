@@ -3,11 +3,11 @@ name: Daily rates posters
 on:
   schedule:
     # Every day except Friday. GitHub may delay or drop a scheduled run (19-20 Oct: the 15:00 UTC run never started),
-    # so the main run starts early and waits for 18:00 Baghdad, and three backups post only if nothing went out yet.
-    - cron: '41 14 * * 0-4,6'
-    - cron: '13 15 * * 0-4,6'
-    - cron: '43 15 * * 0-4,6'
-    - cron: '17 16 * * 0-4,6'
+    # so the main run starts early and waits for 11:00 Baghdad, and three backups post only if nothing went out yet.
+    - cron: '41 7 * * 0-4,6'
+    - cron: '13 8 * * 0-4,6'
+    - cron: '43 8 * * 0-4,6'
+    - cron: '17 9 * * 0-4,6'
   workflow_dispatch:
     inputs:
       publish:
@@ -62,7 +62,7 @@ jobs:
           done
           exit 1
 
-      - name: Draw the posters and the story (Kurdish, and the Arabic edition)
+      - name: Draw the posters and the three stories (Kurdish, and the Arabic edition)
         if: steps.gate.outputs.skip != 'true'
         run: |
           python3 posters.py data/${{ steps.fetch.outputs.day }}.json
@@ -82,7 +82,7 @@ jobs:
           git pull --rebase -q origin main && git push
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Post to Instagram
+      - name: Post the three rates stories to Instagram
         if: steps.gate.outputs.skip != 'true' && ((github.event_name == 'schedule' && vars.RATES_AUTOPOST == 'on') || (github.event_name == 'workflow_dispatch' && inputs.publish))
         env:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
@@ -92,13 +92,13 @@ jobs:
           PAGES="https://surenhawk.github.io/dinarchi-instagram/rates/daily/$DAY"
           BASE="https://raw.githubusercontent.com/${{ github.repository }}/${{ steps.commit.outputs.sha }}/rates/daily/$DAY"
           for i in $(seq 1 20); do
-            if curl -sfI "$PAGES/post-1.jpg" >/dev/null && curl -sfI "$PAGES/post-3.jpg" >/dev/null; then BASE="$PAGES"; break; fi
+            if curl -sfI "$PAGES/story-1.jpg" >/dev/null && curl -sfI "$PAGES/story-3.jpg" >/dev/null; then BASE="$PAGES"; break; fi
             sleep 15
           done
           echo "media from $BASE"
-          if [ "${{ github.event_name }}" = schedule ]; then   # the early run waits for 18:00 Baghdad
-            now=$(date -u +%s); at=$(date -u -d 'today 15:00' +%s)
-            [ "$now" -lt "$at" ] && { echo "waiting $((at - now))s for 18:00 Baghdad"; sleep $((at - now)); }
+          if [ "${{ github.event_name }}" = schedule ]; then   # the early run waits for 11:00 Baghdad
+            now=$(date -u +%s); at=$(date -u -d 'today 08:00' +%s)
+            [ "$now" -lt "$at" ] && { echo "waiting $((at - now))s for 11:00 Baghdad"; sleep $((at - now)); }
           fi
           python3 post.py "$DAY" "$BASE"
-          git add daily && git commit -m "Published rates posters $DAY" && git pull --rebase -q origin main && git push
+          git add daily && git commit -m "Published rates stories $DAY" && git pull --rebase -q origin main && git push

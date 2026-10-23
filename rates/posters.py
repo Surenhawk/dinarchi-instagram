@@ -1,7 +1,7 @@
 """The three daily posters (dollar, gold, currencies) as designed in round 18 of the "Design · rates board, pro branding" thread,
-plus the dollar poster as a 9:16 story, filled from data/<date>.json (dinarchi.py).
+plus the same three posters as 9:16 stories, filled from data/<date>.json (dinarchi.py).
 python3 posters.py data/2026-10-19.json [--lang ku|ar] -> daily/<date>/posters.html + caption.txt (Arabic edition: daily/<date>/ar/);
-then node shoot.js daily/<date> -> post-1.jpg .. post-3.jpg (1080x1350) + story.jpg (1080x1920).
+then node shoot.js daily/<date> -> post-1.jpg .. post-3.jpg (1080x1350) + story-1.jpg .. story-3.jpg (1080x1920).
 Brand Step 5 (2026-10-22): two editions that never mix — Kurdish (@dinarchi.iq, Erbil first) and Arabic (@dinarchi.ar,
 Baghdad first); captions in Western digits with a source · time line, every post pointing to @dinarchi_bot."""
 import argparse, base64, datetime as dt, json, os, sys
@@ -80,7 +80,7 @@ def frame(i, title, body, day, t=None, story=False):
 
 
 def posters(d, t=None):
-    """The three carousel frames + the story (the dollar frame at 9:16), in edition t."""
+    """The three carousel frames + the same three frames at 9:16 for Stories, in edition t."""
     t = t or LANG['ku']
     K, CURS, lead, other = t['k'], t['curs'], t['lead'], t['other']
     u, g = d['usd'], d['gold']
@@ -94,8 +94,9 @@ def posters(d, t=None):
     curs = '<div class="card list">' + '<div class="sep"></div>'.join(
         f'<div class="crow"><img src="{art(c.lower())}"><div class="nm"><b>{name}</b><span>{unit}</span></div>'
         f'<span class="n v">{f(d["cur"][c]["value"])}</span></div>' for c, name, unit in CURS) + '</div>'
-    return [frame(0, K['t_usd'], usd, d['date'], t), frame(1, K['t_gold'], gold, d['date'], t), frame(2, K['t_cur'], curs, d['date'], t),
-            frame(0, K['t_usd'], usd, d['date'], t, story=True)]
+    pages = ((K['t_usd'], usd), (K['t_gold'], gold), (K['t_cur'], curs))
+    return ([frame(i, title, body, d['date'], t) for i, (title, body) in enumerate(pages)]
+            + [frame(i, title, body, d['date'], t, story=True) for i, (title, body) in enumerate(pages)])
 
 
 CSS = f"""
