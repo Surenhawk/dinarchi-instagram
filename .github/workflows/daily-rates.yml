@@ -62,7 +62,7 @@ jobs:
           done
           exit 1
 
-      - name: Draw the posters and the story (Kurdish, and the Arabic edition)
+      - name: Draw the posters and the three stories (Kurdish, and the Arabic edition)
         if: steps.gate.outputs.skip != 'true'
         run: |
           python3 posters.py data/${{ steps.fetch.outputs.day }}.json
@@ -82,7 +82,7 @@ jobs:
           git pull --rebase -q origin main && git push
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Post to Instagram
+      - name: Post the three rates stories to Instagram
         if: steps.gate.outputs.skip != 'true' && ((github.event_name == 'schedule' && vars.RATES_AUTOPOST == 'on') || (github.event_name == 'workflow_dispatch' && inputs.publish))
         env:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
@@ -92,7 +92,7 @@ jobs:
           PAGES="https://surenhawk.github.io/dinarchi-instagram/rates/daily/$DAY"
           BASE="https://raw.githubusercontent.com/${{ github.repository }}/${{ steps.commit.outputs.sha }}/rates/daily/$DAY"
           for i in $(seq 1 20); do
-            if curl -sfI "$PAGES/post-1.jpg" >/dev/null && curl -sfI "$PAGES/post-3.jpg" >/dev/null; then BASE="$PAGES"; break; fi
+            if curl -sfI "$PAGES/story-1.jpg" >/dev/null && curl -sfI "$PAGES/story-3.jpg" >/dev/null; then BASE="$PAGES"; break; fi
             sleep 15
           done
           echo "media from $BASE"
@@ -101,4 +101,4 @@ jobs:
             [ "$now" -lt "$at" ] && { echo "waiting $((at - now))s for 18:00 Baghdad"; sleep $((at - now)); }
           fi
           python3 post.py "$DAY" "$BASE"
-          git add daily && git commit -m "Published rates posters $DAY" && git pull --rebase -q origin main && git push
+          git add daily && git commit -m "Published rates stories $DAY" && git pull --rebase -q origin main && git push
