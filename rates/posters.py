@@ -16,12 +16,12 @@ N = 3
 RLM = '‏'
 K = dict(usd100='100 دۆلار', erbil='هەولێر', baghdad='بەغدا', vs='لە چاو دوێنێ', nochange='بێ گۆڕان', karat='عەیاری',
          mithqal='یەک مسقاڵ', in_dinar='بە دینار', world_gold='زێڕی جیهانی', per_oz='بۆ هەر ئۆنسەیەک', swipe='بڕۆ',
-         t_usd='نرخی دۆلار', t_gold='نرخی زێڕ', t_cur='نرخی دراوەکان')
+         t_usd='نرخی دۆلار', t_gold='نرخی زێڕ', t_cur='نرخی دراوەکان', open_app='ئەپی دینارچی بکەرەوە')
 CURS = [('EUR', 'یۆرۆ', '100 یۆرۆ'), ('GBP', 'پاوەند', '100 پاوەندی بەریتانی'),
         ('TRY', 'لیرە', '100 لیرەی تورکی'), ('JPY', 'یەن', '100 یەنی ژاپۆنی')]
 K_AR = dict(usd100='100 دولار', erbil='أربيل', baghdad='بغداد', vs='مقارنة بالأمس', nochange='بلا تغيير', karat='عيار',
             mithqal='المثقال', in_dinar='بالدينار', world_gold='الذهب العالمي', per_oz='للأونصة', swipe='اسحب',
-            t_usd='سعر الدولار', t_gold='سعر الذهب', t_cur='أسعار العملات')
+            t_usd='سعر الدولار', t_gold='سعر الذهب', t_cur='أسعار العملات', open_app='افتح تطبيق دينارچي')
 CURS_AR = [('EUR', 'اليورو', '100 يورو'), ('GBP', 'الجنيه', '100 جنيه إسترليني'),
            ('TRY', 'الليرة', '100 ليرة تركية'), ('JPY', 'الين', '100 ين ياباني')]
 DAYS_AR = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد']
@@ -69,12 +69,15 @@ def frame(i, title, body, day, t=None, story=False):
     date = f'<div class="stack"><b>{t["days"][x.weekday()]}</b><span class="n">{x.day} / {x.month:02d} / {x.year}</span></div>'
     seg = ''.join(f'<i class="{"on" if k == i else ""}"></i>' for k in range(N))
     nxt = f'<span class="next"><b>{t["k"]["swipe"]}</b><span>→</span></span>' if i < N - 1 else '<span></span>'
-    if story:                                       # one frame, nothing to swipe to
+    app = ''
+    if story:                                       # one frame, nothing to swipe to; an "open the app" button instead
         seg, nxt = '', '<span></span>'
+        app = (f'<div class="app"><img src="{art("app")}"><div><b>{t["k"]["open_app"]}</b>'
+               f'<span class="n">app.dinarchi.com</span></div><span class="go">←</span></div>')
     return f"""<div class="post{' story' if story else ''}">
  <div class="top"><img src="{art('wordmark')}" class="wm">{date}</div>
  <div class="title">{title}</div>
- <div class="stage">{body}</div>
+ <div class="stage">{body}</div>{app}
  <div class="foot"><span class="segs">{seg}</span><div class="handles"><span>{TG}{TG_HANDLE}</span><span>{IG}{t["ig"]}</span></div>{nxt}</div>
 </div>"""
 
@@ -137,7 +140,13 @@ CSS = f"""
 .next{{justify-self:end;display:inline-flex;gap:12px;align-items:center;padding:8px 28px;border-radius:34px;background:{INK};color:#fff;font-size:30px}}
 .next b{{font-weight:700}}
 .post.story{{height:1920px}} .story .top{{top:250px}} .story .title{{top:350px}}
-.story .stage{{top:480px;bottom:420px}} .story .foot{{bottom:300px;grid-template-columns:1fr}} .story .handles{{justify-self:center}}
+.story .stage{{top:480px;bottom:560px}}
+.app{{position:absolute;left:150px;right:150px;bottom:410px;height:124px;display:flex;align-items:center;gap:24px;padding:0 30px 0 34px;
+  background:#fff;border-radius:62px;box-shadow:0 0 0 1px rgba(0,0,0,.06),0 24px 44px -18px rgba(40,30,20,.30)}}
+.app img{{width:80px;height:80px;border-radius:22px}}
+.app div{{display:flex;flex-direction:column;line-height:1.3}} .app b{{font-size:36px;font-weight:800}}
+.app div span{{font-size:30px;font-weight:700;color:#B45309;text-align:right}}
+.app .go{{margin-right:auto;width:68px;height:68px;border-radius:34px;background:{INK};color:#fff;display:flex;align-items:center;justify-content:center;font-size:36px}} .story .foot{{bottom:300px;grid-template-columns:1fr}} .story .handles{{justify-self:center}}
 """
 
 
