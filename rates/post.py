@@ -1,7 +1,7 @@
-"""Publish the day's three posters to Instagram as one carousel, then the dollar poster as a story (Instagram API with Instagram Login).
-python3 post.py <date> <public-base-url>     e.g. post.py 2026-10-19 https://surenhawk.github.io/dinarchi-instagram/rates/daily/2026-10-19
-Env: IG_USER_ID, IG_ACCESS_TOKEN. Writes daily/<date>/published.json.
-The story (brand Step 5) is best-effort: if Instagram refuses it, the carousel stays posted and the run still succeeds."""
+"""Publish the day's three rates posters to Instagram Stories (dollar, gold, currencies), in that order.
+Since 23 Oct 2026 the rates live in Stories, not the feed (growth plan: "Reel-first, rates to Stories").
+python3 post.py <date> <public-base-url>     e.g. post.py 2026-10-23 https://surenhawk.github.io/dinarchi-instagram/rates/daily/2026-10-23
+Env: IG_USER_ID, IG_ACCESS_TOKEN. Writes daily/<date>/published.json after each story, so a rerun never repeats one."""
 import json, os, sys, time, urllib.parse, urllib.request
 
 API = 'https://graph.instagram.com/v23.0'
@@ -20,21 +20,6 @@ def call(method, path, **params):
         sys.exit(f'Instagram API error {e.code} on {path}: {e.read().decode()[:500]}')
 
 
-# Image description for screen readers and search; Instagram indexes alt text alongside captions.
-ALT = 'تابلۆی نرخی دۆلار، زێڕ و دراوەکان لە هەولێر، سلێمانی، بەغدا، بەسرە و دهۆک، {day}. دینارچی'
-
-
-def item(uid, image_url, alt):
-    """Carousel child with alt text; retried without it if the API rejects the field,
-    so a missing alt never costs the day's post."""
-    params = dict(image_url=image_url, is_carousel_item='true')
-    try:
-        return call('POST', f'{uid}/media', alt_text=alt, **params)['id']
-    except SystemExit as e:
-        print(f'alt_text rejected, posting without it: {e}', file=sys.stderr)
-        return call('POST', f'{uid}/media', **params)['id']
-
-
 def ready(cid):
     for _ in range(60):
         s = call('GET', cid, fields='status_code').get('status_code')
@@ -47,36 +32,22 @@ def ready(cid):
 
 
 def story(uid, image_url):
-    """Post story.jpg as an Instagram story. Returns the result dict, or the error text; never stops the run."""
-    try:
-        cid = call('POST', f'{uid}/media', media_type='STORIES', image_url=image_url)['id']
-        ready(cid)
-        return {'media_id': call('POST', f'{uid}/media_publish', creation_id=cid)['id']}
-    except SystemExit as e:
-        print(f'story not posted: {e}', file=sys.stderr)
-        return {'error': str(e)[:300]}
+    cid = call('POST', f'{uid}/media', media_type='STORIES', image_url=image_url)['id']
+    ready(cid)
+    return call('POST', f'{uid}/media_publish', creation_id=cid)['id']
 
 
 def main(day, base):
     out = os.path.join(HERE, 'daily', day)
     done = os.path.join(out, 'published.json')
-    if os.path.exists(done):
-        sys.exit(f'already published {day}: {open(done).read()}')
+    res = json.load(open(done)) if os.path.exists(done) else {}
+    if 'stories' not in res and res:
+        sys.exit(f'already published {day}: {json.dumps(res)}')
+    res.setdefault('stories', [])
     uid = os.environ['IG_USER_ID']
-    caption = open(os.path.join(out, 'caption.txt')).read()
-    kids = []
-    for i in range(1, 4):
-        kid = item(uid, f'{base}/post-{i}.jpg', ALT.format(day=day))
-        ready(kid)
-        kids.append(kid)
-    cid = call('POST', f'{uid}/media', media_type='CAROUSEL', children=','.join(kids), caption=caption)['id']
-    ready(cid)
-    mid = call('POST', f'{uid}/media_publish', creation_id=cid)['id']
-    res = {'feed': {'media_id': mid, 'permalink': call('GET', mid, fields='permalink').get('permalink', '')}}
-    res['at'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
-    json.dump(res, open(done, 'w'), indent=1)            # the feed post is recorded before the story is tried
-    if os.path.exists(os.path.join(out, 'story.jpg')):
-        res['story'] = story(uid, f'{base}/story.jpg')
+    for i in range(len(res['stories']) + 1, 4):
+        res['stories'].append({'frame': i, 'media_id': story(uid, f'{base}/story-{i}.jpg')})
+        res['at'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
         json.dump(res, open(done, 'w'), indent=1)
     print('PUBLISHED', json.dumps(res))
 

@@ -1,7 +1,7 @@
 """The three daily posters (dollar, gold, currencies) as designed in round 18 of the "Design · rates board, pro branding" thread,
-plus the dollar poster as a 9:16 story, filled from data/<date>.json (dinarchi.py).
+plus the same three posters as 9:16 stories, filled from data/<date>.json (dinarchi.py).
 python3 posters.py data/2026-10-19.json [--lang ku|ar] -> daily/<date>/posters.html + caption.txt (Arabic edition: daily/<date>/ar/);
-then node shoot.js daily/<date> -> post-1.jpg .. post-3.jpg (1080x1350) + story.jpg (1080x1920).
+then node shoot.js daily/<date> -> post-1.jpg .. post-3.jpg (1080x1350) + story-1.jpg .. story-3.jpg (1080x1920).
 Brand Step 5 (2026-10-22): two editions that never mix — Kurdish (@dinarchi.iq, Erbil first) and Arabic (@dinarchi.ar,
 Baghdad first); captions in Western digits with a source · time line, every post pointing to @dinarchi_bot."""
 import argparse, base64, datetime as dt, json, os, sys
@@ -25,18 +25,26 @@ K_AR = dict(usd100='100 دولار', erbil='أربيل', baghdad='بغداد', v
 CURS_AR = [('EUR', 'اليورو', '100 يورو'), ('GBP', 'الجنيه', '100 جنيه إسترليني'),
            ('TRY', 'الليرة', '100 ليرة تركية'), ('JPY', 'الين', '100 ين ياباني')]
 DAYS_AR = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد']
-# Step 5 captions (dinarchi-touchpoints.json, ig.caption). {time} = when the numbers were read, Baghdad time.
+# Captions in the house format (suren, 26 Oct 2026): one clear news line, short emoji-led lines, one source, a short labelled
+# footer of our channels. No HTML (Instagram shows tags as text). {time} = when the numbers were read, Baghdad time.
 CAPTION = {
-    'ku': 'نرخی دۆلار و زێڕ ئەمڕۆ · {weekday} {date}\n\nهەولێر: $100 = {erbil} {erbil_change}\nبەغدا: $100 = {baghdad} {baghdad_change}\n'
-          'زێڕی عەیار 21: مسقاڵێک {gold21}\nیۆرۆ: €100 = {eur}\n\nسەرچاوە: {source} · {time}\n'
-          'نرخی ڕاستەوخۆ و ئاگادارکردنەوە: @dinarchi_bot\n\n#نرخی_دۆلار #زێڕ #دینار #هەولێر #دینارچی',
-    'ar': 'سعر الدولار والذهب اليوم · {weekday} {date}\n\nبغداد: $100 = {baghdad} {baghdad_change}\nأربيل: $100 = {erbil} {erbil_change}\n'
-          'ذهب عيار 21: المثقال {gold21}\nاليورو: €100 = {eur}\n\nالمصدر: {source} · {time}\n'
-          'السعر المباشر والتنبيهات: @dinarchi_bot\n\n#سعر_الدولار #الذهب #الدينار_العراقي #بغداد #دينارچي',
+    'ku': '{hook}\n📅 {weekday} {date}\n\n📍 هەولێر: {erbil} دینار بۆ 100 دۆلار {erbil_change}\n📍 بەغدا: {baghdad} دینار بۆ 100 دۆلار {baghdad_change}\n'
+          '🟡 زێڕی عەیار 21: {gold21} دینار بۆ مسقاڵێک\n💶 یۆرۆ: {eur} دینار بۆ 100 یۆرۆ\n\n📊 سەرچاوە: {source} · {time}\n\n'
+          '📢 کەناڵی کوردی: @dinarchi_iq\n📢 کەناڵی عەرەبی: @dinarchi_ar\n📲 ئەپ و نرخی ڕۆژانە: @dinarchi_bot\n📸 ئینستاگرام: @dinarchi.iq\n\n'
+          '#نرخی_دۆلار #زێڕ #دینار #هەولێر #دینارچی',
+    'ar': '{hook}\n📅 {weekday} {date}\n\n📍 بغداد: {baghdad} دينار لكل 100 دولار {baghdad_change}\n📍 أربيل: {erbil} دينار لكل 100 دولار {erbil_change}\n'
+          '🟡 ذهب عيار 21: {gold21} دينار للمثقال\n💶 اليورو: {eur} دينار لكل 100 يورو\n\n📊 المصدر: {source} · {time}\n\n'
+          '📢 القناة الكردية: @dinarchi_iq\n📢 القناة العربية: @dinarchi_ar\n📲 التطبيق والأسعار اليومية: @dinarchi_bot\n📸 إنستغرام: @dinarchi.iq\n\n'
+          '#سعر_الدولار #الذهب #الدينار_العراقي #بغداد #دينارچي',
+}
+# The news line: how the lead market's dollar moved since yesterday's close.
+HOOK = {
+    'ku': {1: '📈 دۆلار لە {city} {n} دینار بەرزبووەوە', -1: '📉 دۆلار لە {city} {n} دینار دابەزی', 0: '➖ نرخی دۆلار لە {city} نەگۆڕا'},
+    'ar': {1: '📈 الدولار يرتفع {n} دينار في {city}', -1: '📉 الدولار ينخفض {n} دينار في {city}', 0: '➖ سعر الدولار في {city} بلا تغيير'},
 }
 LANG = {
-    'ku': dict(k=K, curs=CURS, days=DAYS, ig='@dinarchi.iq', html='ckb', lead='erbil', other='baghdad', source='ئەپی دینارچی'),
-    'ar': dict(k=K_AR, curs=CURS_AR, days=DAYS_AR, ig='@dinarchi.ar', html='ar', lead='baghdad', other='erbil', source='تطبيق دينارچي'),
+    'ku': dict(k=K, curs=CURS, days=DAYS, ig='@dinarchi.iq', html='ckb', lead='erbil', other='baghdad', source='بازاڕی دراوی هەولێر و بەغدا'),
+    'ar': dict(k=K_AR, curs=CURS_AR, days=DAYS_AR, ig='@dinarchi.ar', html='ar', lead='baghdad', other='erbil', source='أسواق الصرف في بغداد وأربيل'),
 }
 IG = '<svg viewBox="0 0 24 24"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.4" cy="6.6" r="1.3" fill="currentColor"/></svg>'
 TG = '<svg viewBox="0 0 24 24"><path d="M3 11.4 L20.5 4.6 L17.6 19.4 L11.6 15 L9.2 17.6 L9.5 13.3 L16.8 7.6 L7.8 12.6 Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></svg>'
@@ -83,7 +91,7 @@ def frame(i, title, body, day, t=None, story=False):
 
 
 def posters(d, t=None):
-    """The three carousel frames + the story (the dollar frame at 9:16), in edition t."""
+    """The three carousel frames + the same three frames at 9:16 for Stories, in edition t."""
     t = t or LANG['ku']
     K, CURS, lead, other = t['k'], t['curs'], t['lead'], t['other']
     u, g = d['usd'], d['gold']
@@ -97,8 +105,9 @@ def posters(d, t=None):
     curs = '<div class="card list">' + '<div class="sep"></div>'.join(
         f'<div class="crow"><img src="{art(c.lower())}"><div class="nm"><b>{name}</b><span>{unit}</span></div>'
         f'<span class="n v">{f(d["cur"][c]["value"])}</span></div>' for c, name, unit in CURS) + '</div>'
-    return [frame(0, K['t_usd'], usd, d['date'], t), frame(1, K['t_gold'], gold, d['date'], t), frame(2, K['t_cur'], curs, d['date'], t),
-            frame(0, K['t_usd'], usd, d['date'], t, story=True)]
+    pages = ((K['t_usd'], usd), (K['t_gold'], gold), (K['t_cur'], curs))
+    return ([frame(i, title, body, d['date'], t) for i, (title, body) in enumerate(pages)]
+            + [frame(i, title, body, d['date'], t, story=True) for i, (title, body) in enumerate(pages)])
 
 
 CSS = f"""
@@ -150,13 +159,15 @@ CSS = f"""
 
 
 def caption(d, lang='ku'):
-    """Step 5 caption: Western digits, the change since yesterday's close, source · time, the bot. No emoji but ▲ ▼."""
+    """House-format caption: the dollar's move as the news line, Western digits, ▲ ▼ changes, one source · time, channel footer."""
     t = LANG[lang]
     x = dt.date.fromisoformat(d['date'])
     u = d['usd']
     chg = lambda c: (f'{"▲" if c > 0 else "▼"} {f(abs(c))}' if c else '')
     read = dt.datetime.fromisoformat(d['read_at']).astimezone(BAGHDAD) if d.get('read_at') else None
-    text = CAPTION[lang].format(
+    lead = u[t['lead']].get('delta') or 0
+    hook = HOOK[lang][(lead > 0) - (lead < 0)].format(city=t['k'][t['lead']], n=f(abs(lead)))
+    text = CAPTION[lang].format(hook=hook, 
         weekday=t['days'][x.weekday()], date=f'{x.day:02d}/{x.month:02d}/{x.year}',
         erbil=f(u['erbil']['value']), erbil_change=chg(u['erbil'].get('delta')),
         baghdad=f(u['baghdad']['value']), baghdad_change=chg(u['baghdad'].get('delta')),
