@@ -2,14 +2,15 @@ name: Daily rates posters
 
 on:
   schedule:
-    # Every day except Friday, posted at 19:00 Baghdad (16:00 UTC). GitHub starts scheduled runs late, often by 4-6 hours,
-    # so the runs are set early: the first one to start waits until 16:00 UTC, reads the prices and posts; the rest skip.
-    # A run that starts after 21:30 Baghdad never posts (on 26 Oct a late run posted the next day's rates at 00:09).
-    - cron: '37 10 * * 0-4,6'
-    - cron: '37 11 * * 0-4,6'
-    - cron: '37 12 * * 0-4,6'
-    - cron: '37 13 * * 0-4,6'
-    - cron: '7 15 * * 0-4,6'
+    # Every day except Friday, posted at 12:00 noon Baghdad (09:00 UTC). GitHub starts scheduled runs late, often by 4-6 hours,
+    # so the runs are set early: the first one to start waits until 08:45 UTC, reads the prices and posts; the rest skip.
+    # A run that starts after 14:00 Baghdad never posts (late runs posted at 23:00 and after midnight, 26-29 Oct).
+    - cron: '17 3 * * 0-4,6'
+    - cron: '7 4 * * 0-4,6'
+    - cron: '7 5 * * 0-4,6'
+    - cron: '7 6 * * 0-4,6'
+    - cron: '7 7 * * 0-4,6'
+    - cron: '7 8 * * 0-4,6'
   workflow_dispatch:
     inputs:
       publish:
@@ -17,7 +18,7 @@ on:
         type: boolean
         default: false
       scheduled:
-        description: 'Behave like the daily run: wait for 19:00 Baghdad, post once, skip outside 18:30-21:30'
+        description: 'Behave like the daily run: wait for 12:00 Baghdad, post once, never after 14:00'
         type: boolean
         default: false
 
@@ -35,16 +36,16 @@ jobs:
         working-directory: rates
     steps:
       - uses: actions/checkout@v4
-      - name: Already posted today? Wait for 19:00 Baghdad
+      - name: Already posted today? Wait for 12:00 Baghdad
         id: gate
         run: |
           DAY=$(TZ=Asia/Baghdad date +%F)
           if [ "${{ github.event_name }}" = schedule ] || [ "${{ inputs.scheduled }}" = true ]; then
             echo "daily=true" >> "$GITHUB_OUTPUT"
             if [ -f "daily/$DAY/published.json" ]; then echo "already posted $DAY"; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-            now=$(date -u +%s); at=$(date -u -d 'today 16:00' +%s); last=$(date -u -d 'today 18:30' +%s)
+            now=$(date -u +%s); at=$(date -u -d 'today 09:00' +%s); last=$(date -u -d 'today 11:00' +%s)
             if [ "$now" -gt "$last" ]; then echo "too late for today's post ($(TZ=Asia/Baghdad date +%H:%M) Baghdad), skipping"; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-            if [ "$now" -lt $((at - 900)) ]; then echo "waiting $((at - 900 - now))s, prices are read at 18:45 Baghdad"; sleep $((at - 900 - now)); fi
+            if [ "$now" -lt $((at - 900)) ]; then echo "waiting $((at - 900 - now))s, prices are read at 11:45 Baghdad"; sleep $((at - 900 - now)); fi
             git pull -q origin main
             if [ -f "daily/$DAY/published.json" ]; then echo "already posted $DAY"; echo "skip=true" >> "$GITHUB_OUTPUT"; fi
           fi
@@ -108,10 +109,10 @@ jobs:
             sleep 15
           done
           echo "media from $BASE"
-          if [ "${{ steps.gate.outputs.daily }}" = true ]; then   # post at 19:00 Baghdad, never after 21:30
-            now=$(date -u +%s); at=$(date -u -d 'today 16:00' +%s)
-            [ "$now" -lt "$at" ] && { echo "waiting $((at - now))s for 19:00 Baghdad"; sleep $((at - now)); }
-            [ "$(date -u +%s)" -gt "$(date -u -d 'today 18:30' +%s)" ] && { echo "past 21:30 Baghdad, not posting"; exit 0; }
+          if [ "${{ steps.gate.outputs.daily }}" = true ]; then   # post at 12:00 Baghdad, never after 14:00
+            now=$(date -u +%s); at=$(date -u -d 'today 09:00' +%s)
+            [ "$now" -lt "$at" ] && { echo "waiting $((at - now))s for 12:00 Baghdad"; sleep $((at - now)); }
+            [ "$(date -u +%s)" -gt "$(date -u -d 'today 11:00' +%s)" ] && { echo "past 14:00 Baghdad, not posting"; exit 0; }
           fi
           python3 post.py "$DAY" "$BASE"
           git add daily && git commit -m "Published rates stories $DAY" && git pull --rebase -q origin main && git push
