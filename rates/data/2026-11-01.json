@@ -1,0 +1,65 @@
+{
+ "date": "2026-11-01",
+ "source": "app.dinarchi.com",
+ "read_at": "2026-11-01T08:45:21+00:00",
+ "usd": {
+  "erbil": {
+   "value": 168150,
+   "delta": 50,
+   "observed_at": "2026-11-01T08:43:31+00:00",
+   "board_value": 168150,
+   "app_delta": 50,
+   "prev_close": 168100,
+   "prev_date": "2026-10-31"
+  },
+  "baghdad": {
+   "value": 168500,
+   "delta": 250,
+   "observed_at": "2026-11-01T07:42:45+00:00",
+   "board_value": 168500,
+   "app_delta": 500,
+   "prev_close": 168250,
+   "prev_date": "2026-10-31"
+  }
+ },
+ "gold": {
+  "24": {
+   "value": 1070000,
+   "delta": 3330,
+   "observed_at": "2026-11-01T08:16:35+00:00"
+  },
+  "21": {
+   "value": 937000,
+   "delta": 3664,
+   "observed_at": "2026-11-01T08:16:35+00:00"
+  },
+  "18": {
+   "value": 803000,
+   "delta": 2998,
+   "observed_at": "2026-11-01T08:16:35+00:00"
+  }
+ },
+ "cur": {
+  "EUR": {
+   "value": 188020,
+   "delta": 220,
+   "observed_at": "2026-11-01T08:10:45.557655+00:00"
+  },
+  "GBP": {
+   "value": 225510,
+   "delta": 270,
+   "observed_at": "2026-11-01T08:10:45.558743+00:00"
+  },
+  "TRY": {
+   "value": 3370,
+   "delta": 4,
+   "observed_at": "2026-11-01T08:10:45.560483+00:00"
+  },
+  "JPY": {
+   "value": 1069,
+   "delta": 2,
+   "observed_at": "2026-11-01T08:10:45.567956+00:00"
+  }
+ },
+ "xau_usd": 3876
+}
